@@ -47,7 +47,7 @@ gamma_back│ │gamma_for       beta_│ │
     alpha_back = 0.1  # in s^-1, rate for A<-B
     beta_back = 0.1   # in s^-1, rate for B<-C
     gamma_back = 0.1  # in s^-1, rate for C<-A
-    t = 5  # duration in seconds
+    t = 100  # duration in seconds
 
     propensities = [lambda a, b, c: alpha_for * a,   # A -> B, Propensity: alpha_forward * A
                     lambda a, b, c: beta_for * b,    # B -> C, Propensity: beta_forward * B
@@ -116,7 +116,10 @@ gamma_back│ │gamma_for       beta_│ │
     DeltaG = MarkovFormulas.compute_cycle_affinity(Transitionmatrix, [0,1,2,0])
     print(f"DeltaG = {DeltaG:.2f} kBT")
     # plot you Hidden Markov model:
+    fig2 = plt.figure()
+    # %% draw HMM model
     MarkovFormulas.draw_HMM_graph(Transitionmatrix, SteadyStatePi, threshold=1e-3)
+    print(fig2.axes[0].get_title())
     # %% convert Gillespie results into a state sequence
     # Generate equally spaced time vector
     time_vector = np.arange(0, t, exposure_time+readout_time)
@@ -148,7 +151,7 @@ gamma_back│ │gamma_for       beta_│ │
     result_array = np.column_stack((time_vector, state_array, A_array, B_array, C_array))
     # %% plots
     # plot state sequence
-    fig2 = plt.figure()
+    fig3 = plt.figure()
     plt.plot(result_array[:, 0], result_array[:, 1])
     plt.title("state sequence")
     plt.xlabel("seconds")
@@ -157,7 +160,7 @@ gamma_back│ │gamma_for       beta_│ │
 
     # plot when in state A i.e. state 0
     # state A
-    f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    fig4, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
     ax1.plot(result_array[:, 0], result_array[:, 2], color='green')
     ax1.set_title("state A", fontsize=8)
     ax1.set_ylabel("on/off")
@@ -170,6 +173,7 @@ gamma_back│ │gamma_for       beta_│ │
     ax3.set_title("state C", fontsize=8)
     ax3.set_ylabel("on/off")
     plt.xlabel("seconds")
+    fig4.suptitle('Sequences for each state')
     plt.show()
     # %% convert to triggering file
     # create frame time for easier calculation
@@ -221,10 +225,10 @@ gamma_back│ │gamma_for       beta_│ │
     trigger_pointsNEW["shutter in orange detection"] = shutterOrange
 # %% plot trigger file like Anushka
     # Setting the figure size and resolution
-    fig = plt.figure(figsize=(9, 4), dpi=300)
+    fig5 = plt.figure(figsize=(9, 4), dpi=300)
     frame_time_ms = int(frame_time*1000)
     framenumber=int(t/frame_time) # both in s
-    ax = fig.add_subplot(111)
+    ax = fig5.add_subplot(111)
 
     y_positions = {
         "Cam o/r": 8.7,
@@ -300,8 +304,8 @@ def write_config_file(save_path, trigger_points, block_time_ms, initials):
 # %% Save everything
 # 0. Where to save
 save_path = "C:\\Users\\Vollmar\\Desktop\\exportTest"
-name = "1Test"
-figures_to_save = [fig1, fig2]
+name = "100sTest"
+figures_to_save = [fig1, fig2, fig3, fig4, fig5]
 
 # 1. Create dated directory
 date_str = datetime.now().strftime("%Y%m%d")
@@ -315,7 +319,11 @@ print(f"Saving files to: {full_save_path}")
 pdf_path = os.path.join(full_save_path, f"{name}_figures.pdf")
 with PdfPages(pdf_path) as pdf:
     for i, fig in enumerate(figures_to_save):
-        png_path = os.path.join(full_save_path, f"{name}_fig_{i+1}.png")
+        if fig.get_suptitle():
+            figtitle = fig.get_suptitle()
+        else:
+            figtitle = fig.axes[0].get_title()
+        png_path = os.path.join(full_save_path, f"{name}_fig{i+1}_{figtitle}.png")
         fig.savefig(png_path)
         pdf.savefig(fig)
 print("Figures saved.")
@@ -328,11 +336,38 @@ write_config_file(config_save_path, trigger_pointsNEW, block_time_ms, initials)
 # 4. Save extra input parameters to another txt
 params_path = os.path.join(full_save_path, f"{name}_params.txt")
 with open(params_path, "w") as f:
-    f.write("Input Parameters:\n")
-    f.write(f"population: {N} \n")
-    f.write(f"Initial populations: {initials}\n")
+    f.write("Gillespie input Parameters:\n")
+    f.write(f"population: \t{N}\n")
+    f.write(f"Initial populations: \t{initials}\n")
+    f.write("rates:\n")
+    f.write(f"""alpha_forward =\t{alpha_for} s^-1\t rate for A->B
+beta_forward =\t{beta_for} s^-1\t, rate for B->C
+gamma_forward =\t{gamma_for} s^-1\t rate for C->A
+alpha_backward =\t{alpha_back} s^-1\t rate for A<-B
+beta_backward =\t{beta_back} s^-1\t rate for B<-C
+gamma_backward =\t{gamma_back} s^-1\t rate for C<-A\n""")
+    f.write("#\n")
+    f.write("Calculated Hidden Markov Model:\n")
     f.write(f"Transition Matrix:\n{Transitionmatrix}\n")
-    f.write(f"Exposure Time: {exposure_time} ms\n")
-    f.write(f"Readout Time: {readout_time} ms\n")
+    f.write(f"DeltaG: \t{DeltaG:.4f} kBT\n")
+    f.write(f"DeltaS: \t{DeltaS:.4e} kBT\n")
+    f.write("#\n")
+    f.write("Trigger Settings:\n")
+    f.write(f"Exposure Time: \t{exposure_time} s\n")
+    f.write(f"Readout Time: \t{readout_time} s\n")
+    f.write(f"Duration:\t{t} s")
     
 print("Parameters file saved.")
+
+# 5. Save state sequences
+sequence_path = os.path.join(full_save_path, f"{name}_StateSequences.txt")
+time_points_string = ', '.join(['{:.3f}'.format(i) if type(i) == float else str(i) for i in time_points])
+print(time_points_string)
+header=f"""true time_points by Gillespie [s]
+{my_string}
+time[s]  \tStateSequence \tStateA \tStateB \tStateC"""
+np.savetxt(sequence_path, np.c_[time_vector, state_array, A_array, B_array, C_array],
+               header=header, fmt='%.2f %d %d %d %d',
+               delimiter='\t')
+
+print("State sequence file saved.")

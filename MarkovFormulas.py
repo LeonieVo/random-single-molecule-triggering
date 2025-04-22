@@ -137,7 +137,7 @@ def draw_HMM_graph(Transitionmatrix, steadyStatePopulations, threshold=1e-3):
                            connectionstyle='arc3,rad=0.1',
                            min_source_margin=20, min_target_margin=20)
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8, 
-                                 label_pos=0.3,verticalalignment='top')
+                                 label_pos=0.3,verticalalignment='center')# verticalalignment='top'
 
     plt.title("HMM Transition Graph")
     plt.axis('off')
@@ -196,7 +196,7 @@ def draw_HMM_graph_with_curved_edges(Transitionmatrix, steadyStatePopulations, t
             )
             nx.draw_networkx_edge_labels(
                 G, pos, edge_labels={(i, j): f"$p_{{{i}{j}}}$={Transitionmatrix[i, j]:.2f}"},
-                label_pos=0.5, font_size=8,
+                label_pos=0.4, font_size=8,
                 rotate=True,
                 verticalalignment='top',
                 bbox=None
@@ -212,10 +212,11 @@ def draw_HMM_graph_with_curved_edges(Transitionmatrix, steadyStatePopulations, t
             )
             nx.draw_networkx_edge_labels(
                 G, pos, edge_labels={(j, i): f"$p_{{{j}{i}}}$={Transitionmatrix[j, i]:.2f}"},
-                label_pos=0.5, font_size=8,
+                label_pos=0.4, font_size=8,
                 rotate=True,
                 verticalalignment='bottom',
-                bbox=None
+                bbox=None,
+                font_color='g'
             )
 
             drawn_edges.add((i, j))
