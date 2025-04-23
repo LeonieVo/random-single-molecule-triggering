@@ -144,14 +144,14 @@ def draw_HMM_graph(Transitionmatrix, steadyStatePopulations, threshold=1e-3):
     plt.tight_layout()
     plt.show()
 
-T = np.array([
-    [0.8, 0.1, 0.1],
-    [0.2, 0.7, 0.1],
-    [0.3, 0.3, 0.4]
-])
-pi = np.array([0.4, 0.35, 0.25])
+# T = np.array([
+#     [0.8, 0.1, 0.1],
+#     [0.2, 0.7, 0.1],
+#     [0.3, 0.3, 0.4]
+# ])
+# pi = np.array([0.4, 0.35, 0.25])
 
-draw_HMM_graph(T, pi)
+# draw_HMM_graph(T, pi)
 # %% version 2
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -241,11 +241,11 @@ def draw_HMM_graph_with_curved_edges(Transitionmatrix, steadyStatePopulations, t
     plt.tight_layout()
     plt.show()
     
-T = np.array([
-    [0.8, 0.1, 0.1],
-    [0.2, 0.7, 0.1],
-    [0.3, 0.3, 0.4]
-])
-pi = np.array([0.4, 0.35, 0.25])
+# T = np.array([
+#     [0.8, 0.1, 0.1],
+#     [0.2, 0.7, 0.1],
+#     [0.3, 0.3, 0.4]
+# ])
+# pi = np.array([0.4, 0.35, 0.25])
 
-draw_HMM_graph_with_curved_edges(T, pi)
+# draw_HMM_graph_with_curved_edges(T, pi)

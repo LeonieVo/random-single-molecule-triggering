@@ -8,9 +8,10 @@ Created on Mon Mar 31 14:11:58 2025
 import matplotlib.pyplot as plt
 import numpy as np
 import gillespie  # get from https://github.com/sueskind/gillespie or pip install gillespie
-import MarkovFormulas # import helper functions
+import MarkovFormulas  # import helper functions
 from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
+from collections import defaultdict
 import os
 
 if __name__ == '__main__':
@@ -32,22 +33,25 @@ gamma_back│ │gamma_for       beta_│ │
                   │OR 2  │
                   └──────┘
                   """
+# %% Where to save export
+    save_path = "Z:\\_personalDATA\\JS+LV_4F-TIRF\\3stateDNA\\generatedTriggerPatterns"
+    trigger_name = "OnlyForward_200+50ms_0pt5Hz"
 # %% DEFINE YOU MODEL set all parameters:
     # for creating a triggering file in the end:
     exposure_time = 0.200  # in seconds i.e. 200 ms
-    readout_time = 0.05  # in seconds i.e. 50 ms
+    readout_time = 0.050  # in seconds i.e. 50 ms
     # THE MODEL:
     N = 1  # whole population, set to 1 for 100%
     # Initial state populations
     initials = [1, 0, 0]  # A, B, C
     # rates for a 3-state model:
-    alpha_for = 0.2   # in s^-1, rate for A->B
-    beta_for = 0.2    # in s^-1, rate for B->C
-    gamma_for = 0.2   # in s^-1, rate for C->A
-    alpha_back = 0.1  # in s^-1, rate for A<-B
-    beta_back = 0.1   # in s^-1, rate for B<-C
-    gamma_back = 0.1  # in s^-1, rate for C<-A
-    t = 100  # duration in seconds
+    alpha_for = 0.5   # in s^-1, rate for A->B
+    beta_for = 0.5    # in s^-1, rate for B->C
+    gamma_for = 0.5   # in s^-1, rate for C->A
+    alpha_back = 0.0  # in s^-1, rate for A<-B
+    beta_back = 0.0   # in s^-1, rate for B<-C
+    gamma_back = 0.0  # in s^-1, rate for C<-A
+    t = 200  # duration in seconds
 
     propensities = [lambda a, b, c: alpha_for * a,   # A -> B, Propensity: alpha_forward * A
                     lambda a, b, c: beta_for * b,    # B -> C, Propensity: beta_forward * B
@@ -65,8 +69,9 @@ gamma_back│ │gamma_for       beta_│ │
     # %% the gillespie simulation itself
     time_points, ABC = gillespie.simulate(initials, propensities, stoichiometry, t)
     A, B, C = zip(*ABC)
+
+    # figure 1: gillespie results
     fig1 = plt.figure()
-    # plot1: gillespie results
     plt.plot(time_points, A, label="A")
     plt.plot(time_points, B, label="B")
     plt.plot(time_points, C, label="C")
@@ -115,9 +120,8 @@ gamma_back│ │gamma_for       beta_│ │
     print(f"DeltaS = {DeltaS:.2e} kBT")
     DeltaG = MarkovFormulas.compute_cycle_affinity(Transitionmatrix, [0,1,2,0])
     print(f"DeltaG = {DeltaG:.2f} kBT")
-    # plot you Hidden Markov model:
+    # %% plot Hidden Markov model:
     fig2 = plt.figure()
-    # %% draw HMM model
     MarkovFormulas.draw_HMM_graph(Transitionmatrix, SteadyStatePi, threshold=1e-3)
     print(fig2.axes[0].get_title())
     # %% convert Gillespie results into a state sequence
@@ -144,12 +148,13 @@ gamma_back│ │gamma_for       beta_│ │
         C_array[mask] = C[i] # TRUE (=1) if in state C
     # Assign final state until end of time vector
     state_array[time_vector >= time_points[-1]] = state_sequence[-1]
+    state_array = [int(s) for s in state_array] # only integers make sense for the states
     A_array[time_vector >= time_points[-1]] = A[-1]
     B_array[time_vector >= time_points[-1]] = B[-1]
     C_array[time_vector >= time_points[-1]] = C[-1]
     # Combine time and state into a single array
     result_array = np.column_stack((time_vector, state_array, A_array, B_array, C_array))
-    # %% plots
+    # %% state sequence plots
     # plot state sequence
     fig3 = plt.figure()
     plt.plot(result_array[:, 0], result_array[:, 1])
@@ -175,6 +180,74 @@ gamma_back│ │gamma_for       beta_│ │
     plt.xlabel("seconds")
     fig4.suptitle('Sequences for each state')
     plt.show()
+    # %% Dwell times
+    # create frame time for easier calculation
+    frame_time = exposure_time + readout_time  # in seconds
+    # TRUE Dwell times from Gillespie i.e. "in continous time"
+    # 1. Calculate dwell times
+    dwell_times_Gill = [time_points[i+1]-time_points[i] for i in range(len(time_points) - 1)]
+    # 2. Split dwell times by state
+    state_dwell_times_Gill = defaultdict(list)
+
+    for i in range(len(dwell_times_Gill)):
+        state = state_sequence[i]
+        state_dwell_times_Gill[state].append(dwell_times_Gill[i])
+    
+    # Plot histogram for each state
+    fig5 = plt.figure()  #figsize=(12, 4)
+    plt.hist(state_dwell_times_Gill[0], bins=50, color='green', alpha=0.6, label='State A')
+    plt.hist(state_dwell_times_Gill[1], bins=50, color='orange', alpha=0.6, label='State B')
+    plt.hist(state_dwell_times_Gill[2], bins=50, color='red', alpha=0.6, label='State C')
+
+    plt.xlabel('Dwell Time [s]')
+    plt.ylabel('Frequency')
+    plt.title('Dwell Time Histograms Gillespie')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    # BIASED BY FRAMES Dwell times from trigger sequence i.e. "in discrete time/ in frames"
+    # 1. Find dwell times
+    state_dwell_times_Laser = defaultdict(list)
+    current_state = state_array[0]
+    start_index = 0
+    
+    for i in range(1, len(state_array)):
+        if state_array[i] != current_state:
+            start_time = time_vector[start_index]
+            end_time = time_vector[i - 1] + (time_vector[1] - time_vector[0])  # include duration of last sample
+            dwell_duration = end_time - start_time
+            state_dwell_times_Laser[current_state].append(dwell_duration)
+    
+            # Update for next segment
+            current_state = state_array[i]
+            start_index = i
+    # 2. Handle the last segment
+    start_time = time_vector[start_index]
+    end_time = time_vector[-1] + (time_vector[1] - time_vector[0])
+    dwell_duration = end_time - start_time
+    state_dwell_times_Laser[current_state].append(dwell_duration)
+    # Plot histogram for each state
+    fig6 = plt.figure()  #figsize=(12, 4)
+    bins_laser = np.arange(0, max(max(state_dwell_times_Laser.values()))+1, frame_time)
+    bins_Gill = np.arange(0, max(max(state_dwell_times_Laser.values()))+1, frame_time/10)
+    # dwell times from LASER
+    plt.hist(state_dwell_times_Laser[0], bins=bins_laser, color='green', alpha=0.6, label='State A Laser')
+    plt.hist(state_dwell_times_Laser[1], bins=bins_laser, color='orange', alpha=0.6, label='State B Laser')
+    plt.hist(state_dwell_times_Laser[2], bins=bins_laser, color='red', alpha=0.6, label='State C Laser')
+    # dwell times from Gillespie
+    plt.hist(state_dwell_times_Gill[0], bins=bins_Gill, color='darkgreen', alpha=0.6, label='State A Gill')
+    plt.hist(state_dwell_times_Gill[1], bins=bins_Gill, color='darkorange', alpha=0.6, label='State B Gill')
+    plt.hist(state_dwell_times_Gill[2], bins=bins_Gill, color='maroon', alpha=0.6, label='State C Gill')
+    plt.xlabel('Dwell Time [s]')
+    plt.ylabel('Frequency')
+    plt.title('Dwell Time Histograms LASER')
+    plt.xlim((0, max(max(state_dwell_times_Laser.values()))+1))
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
     # %% convert to triggering file
     # create frame time for easier calculation
     frame_time = exposure_time + readout_time  # in seconds
@@ -225,10 +298,10 @@ gamma_back│ │gamma_for       beta_│ │
     trigger_pointsNEW["shutter in orange detection"] = shutterOrange
 # %% plot trigger file like Anushka
     # Setting the figure size and resolution
-    fig5 = plt.figure(figsize=(9, 4), dpi=300)
+    fig7 = plt.figure(figsize=(9, 4), dpi=300)
     frame_time_ms = int(frame_time*1000)
     framenumber=int(t/frame_time) # both in s
-    ax = fig5.add_subplot(111)
+    ax = fig7.add_subplot(111)
 
     y_positions = {
         "Cam o/r": 8.7,
@@ -302,39 +375,36 @@ def write_config_file(save_path, trigger_points, block_time_ms, initials):
     except Exception as e:
         print(f"Error writing configuration file: {e}")
 # %% Save everything
-# 0. Where to save
-save_path = "C:\\Users\\Vollmar\\Desktop\\exportTest"
-name = "100sTest"
-figures_to_save = [fig1, fig2, fig3, fig4, fig5]
-
+# 0. Which figures to export
+figures_to_save = [fig1, fig2, fig3, fig4, fig6, fig7]  # fig5,
 # 1. Create dated directory
 date_str = datetime.now().strftime("%Y%m%d")
-dir_name = f"{date_str}_{name}"
+dir_name = f"{date_str}_{trigger_name}"
 full_save_path = os.path.join(save_path, dir_name)
 os.makedirs(full_save_path, exist_ok=True)
     
 print(f"Saving files to: {full_save_path}")
 
 # 2. Save all figures as individual PNGs and combined PDF
-pdf_path = os.path.join(full_save_path, f"{name}_figures.pdf")
+pdf_path = os.path.join(full_save_path, f"{trigger_name}_figures.pdf")
 with PdfPages(pdf_path) as pdf:
     for i, fig in enumerate(figures_to_save):
         if fig.get_suptitle():
             figtitle = fig.get_suptitle()
         else:
             figtitle = fig.axes[0].get_title()
-        png_path = os.path.join(full_save_path, f"{name}_fig{i+1}_{figtitle}.png")
+        png_path = os.path.join(full_save_path, f"{trigger_name}_fig{i+1}_{figtitle}.png")
         fig.savefig(png_path)
         pdf.savefig(fig)
 print("Figures saved.")
 
 # 3. Save config file
-config_save_path = os.path.join(full_save_path, f"{name}_Laserconfig.txt")
+config_save_path = os.path.join(full_save_path, f"{trigger_name}_Laserconfig.txt")
 write_config_file(config_save_path, trigger_pointsNEW, block_time_ms, initials)
 
 
 # 4. Save extra input parameters to another txt
-params_path = os.path.join(full_save_path, f"{name}_params.txt")
+params_path = os.path.join(full_save_path, f"{trigger_name}_params.txt")
 with open(params_path, "w") as f:
     f.write("Gillespie input Parameters:\n")
     f.write(f"population: \t{N}\n")
@@ -349,6 +419,7 @@ gamma_backward =\t{gamma_back} s^-1\t rate for C<-A\n""")
     f.write("#\n")
     f.write("Calculated Hidden Markov Model:\n")
     f.write(f"Transition Matrix:\n{Transitionmatrix}\n")
+    f.write(f"Steady State Population [probabilities]:\n{SteadyStatePi}\n")
     f.write(f"DeltaG: \t{DeltaG:.4f} kBT\n")
     f.write(f"DeltaS: \t{DeltaS:.4e} kBT\n")
     f.write("#\n")
@@ -360,11 +431,10 @@ gamma_backward =\t{gamma_back} s^-1\t rate for C<-A\n""")
 print("Parameters file saved.")
 
 # 5. Save state sequences
-sequence_path = os.path.join(full_save_path, f"{name}_StateSequences.txt")
+sequence_path = os.path.join(full_save_path, f"{trigger_name}_StateSequences.txt")
 time_points_string = ', '.join(['{:.3f}'.format(i) if type(i) == float else str(i) for i in time_points])
-print(time_points_string)
 header=f"""true time_points by Gillespie [s]
-{my_string}
+{time_points_string}
 time[s]  \tStateSequence \tStateA \tStateB \tStateC"""
 np.savetxt(sequence_path, np.c_[time_vector, state_array, A_array, B_array, C_array],
                header=header, fmt='%.2f %d %d %d %d',
