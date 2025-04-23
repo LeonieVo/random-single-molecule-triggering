@@ -125,9 +125,10 @@ gamma_back│ │gamma_for       beta_│ │
     MarkovFormulas.draw_HMM_graph(Transitionmatrix, SteadyStatePi, threshold=1e-3)
     print(fig2.axes[0].get_title())
     # %% convert Gillespie results into a state sequence
+
     # Generate equally spaced time vector
     time_vector = np.arange(0, t, exposure_time+readout_time)
-
+    time_vector_mslike = np.arange(0, t, 1/1000)
     # Convert list into array
     ABC_array = np.array(ABC)
     # Mapping tuples to state indices
