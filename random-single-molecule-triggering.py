@@ -35,7 +35,7 @@ gamma_back│ │gamma_for       beta_│ │
                   """
 # %% Where to save export
     save_path = "Z:\\_personalDATA\\JS+LV_4F-TIRF\\3stateDNA\\generatedTriggerPatterns"
-    trigger_name = "OnlyForward_200+50ms_0pt5Hz"
+    trigger_name = "OnlyForward_200+50ms_0pt5Hz_contLaser"
 # %% DEFINE YOU MODEL set all parameters:
     # for creating a triggering file in the end:
     exposure_time = 0.200  # in seconds i.e. 200 ms
@@ -124,7 +124,7 @@ gamma_back│ │gamma_for       beta_│ │
     fig2 = plt.figure()
     MarkovFormulas.draw_HMM_graph(Transitionmatrix, SteadyStatePi, threshold=1e-3)
     print(fig2.axes[0].get_title())
-    # %% convert Gillespie results into a state sequence
+    # %% convert Gillespie results into a state sequence FRAMEWISE
 
     # Generate equally spaced time vector
     time_vector = np.arange(0, t, exposure_time+readout_time)
@@ -155,6 +155,30 @@ gamma_back│ │gamma_for       beta_│ │
     C_array[time_vector >= time_points[-1]] = C[-1]
     # Combine time and state into a single array
     result_array = np.column_stack((time_vector, state_array, A_array, B_array, C_array))
+    # %% convert Gillespie results into a state sequence 1000ms-WISE
+    time_vector_mslike = np.arange(0, t, 1/1000)
+    # Convert list into array
+    ABC_array_ms = np.array(ABC)
+    # Create state array
+    state_array_ms = np.zeros_like(time_vector_mslike, dtype=int)
+    A_array_ms = np.zeros_like(time_vector_mslike, dtype=int)
+    B_array_ms = np.zeros_like(time_vector_mslike, dtype=int)
+    C_array_ms = np.zeros_like(time_vector_mslike, dtype=int)
+    # Assign states based on time intervals
+    for i in range(len(time_points) - 1):
+        mask = (time_vector_mslike >= time_points[i]) & (time_vector_mslike < time_points[i + 1])
+        state_array_ms[mask] = state_sequence[i]  # in which state 0 or 1 or 2
+        A_array_ms[mask] = A[i] # TRUE (=1) if in state A
+        B_array_ms[mask] = B[i] # TRUE (=1) if in state B
+        C_array_ms[mask] = C[i] # TRUE (=1) if in state C
+    # Assign final state until end of time vector
+    state_array_ms[time_vector_mslike >= time_points[-1]] = state_sequence[-1]
+    state_array_ms = [int(s) for s in state_array_ms] # only integers make sense for the states
+    A_array_ms[time_vector_mslike >= time_points[-1]] = A[-1]
+    B_array_ms[time_vector_mslike >= time_points[-1]] = B[-1]
+    C_array_ms[time_vector_mslike >= time_points[-1]] = C[-1]
+    # Combine time and state into a single array
+    result_array_ms = np.column_stack((time_vector_mslike, state_array_ms, A_array_ms, B_array_ms, C_array_ms))
     # %% state sequence plots
     # plot state sequence
     fig3 = plt.figure()
@@ -255,7 +279,7 @@ gamma_back│ │gamma_for       beta_│ │
     # create trigger_pointsNEW dict
     trigger_pointsNEW = {}  # in ms
     # define some presents:
-    alwaysOff = [(int(t*1000), int(t*1000))]  # in m, default off
+    alwaysOff = [(int(t*1000), int(t*1000))]  # in ms, default off
     cam0 = (readout_time, readout_time + exposure_time)  # in s, 1 frame switch on camera
     shutterON = (0, frame_time)
     block_time_ms = int(t*1000)  # length of whole triggering block in ms
@@ -267,23 +291,38 @@ gamma_back│ │gamma_for       beta_│ │
     laserC = []  # red
     shutterBlue = []
     shutterOrange = []
+    # cameras in frames:
     for frame in range(0, int(t/frame_time), 1):
         # camera:
         cam.append(tuple(int(x*1000+(frame*frame_time*1000)) for x in cam0))  # in ms
         camBG=cam
-        if A_array[frame]:
-            # laser green on if in state A:
-            laserA.append(tuple(int(x*1000+(frame*frame_time*1000)) for x in cam0))
-            # if green laser on open Shutter orange:
-            shutterOrange.append(tuple(int(x*1000+(frame*frame_time*1000)) for x in shutterON))
-        if B_array[frame]:
-            # laser orange on if in state B:
-            laserB.append(tuple(int(x*1000+(frame*frame_time*1000)) for x in cam0))
-            # if orange laser on open Shutter orange:
-            shutterOrange.append(tuple(int(x*1000+(frame*frame_time*1000)) for x in shutterON))
-        if C_array[frame]:
-            # laser red on if in state C:
-            laserC.append(tuple(int(x*1000+(frame*frame_time*1000)) for x in cam0))
+    time_points_ms = [round(tp * 1000) for tp in time_points]
+    if time_points_ms[-1] > t*1000:  # delete last time_point if it is  bigger than simulation duration becasue this causes problems in triggering
+        time_points_ms[-1] = t*1000
+    # lasers and shutters in milliseconds:
+    for tp in range(len(time_points)):
+        if ABC_array[tp,0]==1: # laser A
+            if tp < len(time_points_ms) - 1:
+                laserA.append((time_points_ms[tp], time_points_ms[tp+1]))
+                # if green laser on open Shutter orange:
+                shutterOrange.append((time_points_ms[tp], time_points_ms[tp+1]))
+            else:
+                laserA.append((time_points_ms[tp], int(t*1000))) # final value
+                shutterOrange.append((time_points_ms[tp], int(t*1000)))
+        if ABC_array[tp,1]==1:  # laser B
+            if tp < len(time_points_ms) - 1:
+                laserB.append((time_points_ms[tp], time_points_ms[tp+1]))
+                # if orange laser on open Shutter orange:
+                shutterOrange.append((time_points_ms[tp], time_points_ms[tp+1]))
+            else:
+                laserB.append((time_points_ms[tp], int(t*1000))) # final value
+                shutterOrange.append((time_points_ms[tp], int(t*1000)))
+        if ABC_array[tp,2]==1:  # laser C
+            if tp < len(time_points_ms) - 1:
+                laserC.append((time_points_ms[tp], time_points_ms[tp+1]))
+            else:
+                laserC.append((time_points_ms[tp], int(t*1000))) # final value
+                shutterOrange.append((time_points_ms[tp], int(t*1000)))                      
     # sort entries of shutterOrange to be in ascending order:
     shutterOrange.sort()
     # if orange laser on switch of blue/green cam
@@ -432,7 +471,8 @@ gamma_backward =\t{gamma_back} s^-1\t rate for C<-A\n""")
 print("Parameters file saved.")
 
 # 5. Save state sequences
-sequence_path = os.path.join(full_save_path, f"{trigger_name}_StateSequences.txt")
+# in frames
+sequence_path = os.path.join(full_save_path, f"{trigger_name}_StateSequences_frames.txt")
 time_points_string = ', '.join(['{:.3f}'.format(i) if type(i) == float else str(i) for i in time_points])
 header=f"""true time_points by Gillespie [s]
 {time_points_string}
@@ -441,4 +481,15 @@ np.savetxt(sequence_path, np.c_[time_vector, state_array, A_array, B_array, C_ar
                header=header, fmt='%.2f %d %d %d %d',
                delimiter='\t')
 
-print("State sequence file saved.")
+print("State sequence [frames] file saved.")
+# State sequence in ms for continous lasers
+sequence_path = os.path.join(full_save_path, f"{trigger_name}_StateSequences_ms.txt")
+time_points_string = ', '.join(['{:.3f}'.format(i) if type(i) == float else str(i) for i in time_points])
+header=f"""true time_points by Gillespie [s]
+{time_points_string}
+time[s]  \tStateSequence \tStateA \tStateB \tStateC"""
+np.savetxt(sequence_path, np.c_[time_vector_mslike, state_array_ms, A_array_ms, B_array_ms, C_array_ms],
+               header=header, fmt='%.3f %d %d %d %d',
+               delimiter='\t')
+
+print("State sequence [ms] file saved.")
