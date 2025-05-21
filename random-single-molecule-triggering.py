@@ -34,23 +34,23 @@ gamma_back│ │gamma_for       beta_│ │
                   └──────┘
                   """
 # %% Where to save export
-    save_path = "Z:\\_personalDATA\\JS+LV_4F-TIRF\\3stateDNA\\generatedTriggerPatterns"
-    trigger_name = "OnlyForward_200+50ms_0pt5Hz_contLaser"
+    save_path = "Z:\\_personalDATA\\JS+LV_4F-TIRF\\007_project_3stateDNA\\generatedTriggerPatterns"
+    trigger_name = "for1Hzback033Hz"
 # %% DEFINE YOU MODEL set all parameters:
     # for creating a triggering file in the end:
     exposure_time = 0.200  # in seconds i.e. 200 ms
-    readout_time = 0.050  # in seconds i.e. 50 ms
+    readout_time = 0.050 # in seconds i.e. 50 ms
     # THE MODEL:
     N = 1  # whole population, set to 1 for 100%
     # Initial state populations
     initials = [1, 0, 0]  # A, B, C
     # rates for a 3-state model:
-    alpha_for = 0.5   # in s^-1, rate for A->B
-    beta_for = 0.5    # in s^-1, rate for B->C
-    gamma_for = 0.5   # in s^-1, rate for C->A
-    alpha_back = 0.0  # in s^-1, rate for A<-B
-    beta_back = 0.0   # in s^-1, rate for B<-C
-    gamma_back = 0.0  # in s^-1, rate for C<-A
+    alpha_for = 1   # in s^-1, rate for A->B
+    beta_for = 1   # in s^-1, rate for B->C
+    gamma_for = 1   # in s^-1, rate for C->A
+    alpha_back = 0.33  # in s^-1, rate for A<-B
+    beta_back = 0.33   # in s^-1, rate for B<-C
+    gamma_back = 0.33  # in s^-1, rate for C<-A
     t = 200  # duration in seconds
 
     propensities = [lambda a, b, c: alpha_for * a,   # A -> B, Propensity: alpha_forward * A
@@ -336,6 +336,40 @@ gamma_back│ │gamma_for       beta_│ │
     trigger_pointsNEW["Laser red"] = laserC
     trigger_pointsNEW["shutter in blue detection"] = alwaysOff
     trigger_pointsNEW["shutter in orange detection"] = shutterOrange
+    
+# %% spilt config file
+
+# ALWAYS off still a plroblem
+    def split_and_write_configs(config_save_path, trigger_points, total_time_s, initials, n_chunks):
+        chunk_duration_s = total_time_s / n_chunks
+        chunk_duration_ms = int(chunk_duration_s * 1000)
+    
+        for i in range(n_chunks):
+            start_ms = int(i * chunk_duration_s * 1000)
+            end_ms = int((i + 1) * chunk_duration_s * 1000)
+    
+            # Prepare chunk-specific trigger intervals
+            chunk_trigger_points = {}
+            for key, intervals in trigger_points.items():
+                chunk_intervals = []
+                for s, e in intervals:
+                    # Only include intervals that intersect with this chunk
+                    if e > start_ms and s < end_ms:
+                        # Clip and shift to start from 0 in this chunk
+                        new_s = max(s, start_ms) - start_ms
+                        new_e = min(e, end_ms) - start_ms
+                        chunk_intervals.append((int(new_s), int(new_e)))
+                chunk_trigger_points[key] = chunk_intervals
+    
+            # File name: add _part1, _part2, etc.
+            base, ext = os.path.splitext(config_save_path)
+            chunk_filename = f"{base}_part{i+1}{ext}"
+    
+            # Write the config file
+            write_config_file(chunk_filename, chunk_trigger_points, chunk_duration_ms, initials)    
+            
+
+
 # %% plot trigger file like Anushka
     # Setting the figure size and resolution
     fig7 = plt.figure(figsize=(9, 4), dpi=300)
@@ -414,6 +448,9 @@ def write_config_file(save_path, trigger_points, block_time_ms, initials):
         print(f"Configuration file successfully written to {save_path}")
     except Exception as e:
         print(f"Error writing configuration file: {e}")
+        
+
+
 # %% Save everything
 # 0. Which figures to export
 figures_to_save = [fig1, fig2, fig3, fig4, fig6, fig7]  # fig5,
@@ -441,7 +478,7 @@ print("Figures saved.")
 # 3. Save config file
 config_save_path = os.path.join(full_save_path, f"{trigger_name}_Laserconfig.txt")
 write_config_file(config_save_path, trigger_pointsNEW, block_time_ms, initials)
-
+split_and_write_configs(config_save_path, trigger_pointsNEW, t, initials, 5)
 
 # 4. Save extra input parameters to another txt
 params_path = os.path.join(full_save_path, f"{trigger_name}_params.txt")

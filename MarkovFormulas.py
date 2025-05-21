@@ -126,7 +126,7 @@ def draw_HMM_graph(Transitionmatrix, steadyStatePopulations, threshold=1e-3):
 
     # Draw the graph
     pos = nx.spring_layout(G, seed=42)  # or use circular_layout for a ring-like cycle
-    edge_labels = {(i, j): f"$p_{{{i}{j}}}$={d['weight']:.2f}" for i, j, d in G.edges(data=True)}
+    edge_labels = {(i, j): f"$p_{{{i}{j}}}$={d['weight']:.3f}" for i, j, d in G.edges(data=True)}
 
     node_labels = nx.get_node_attributes(G, 'label')  #  retrieves the "label" attribute from all nodes in the graph G
     node_sizes = 3000 * steadyStatePopulations  # scale for visibility
@@ -175,7 +175,7 @@ def draw_HMM_graph_with_curved_edges(Transitionmatrix, steadyStatePopulations, t
     pos = nx.spring_layout(G, seed=3)
     #pos = nx.circular_layout(G) 
     node_labels = nx.get_node_attributes(G, 'label')
-    edge_labels = {(i, j): f"$p_{{{i}{j}}}$={d['weight']:.2f}" for i, j, d in G.edges(data=True)}
+    edge_labels = {(i, j): f"$p_{{{i}{j}}}$={d['weight']:.3f}" for i, j, d in G.edges(data=True)}
     node_sizes = 3000 * steadyStatePopulations
 
     # Draw nodes and labels
@@ -195,7 +195,7 @@ def draw_HMM_graph_with_curved_edges(Transitionmatrix, steadyStatePopulations, t
                 min_source_margin=20, min_target_margin=20
             )
             nx.draw_networkx_edge_labels(
-                G, pos, edge_labels={(i, j): f"$p_{{{i}{j}}}$={Transitionmatrix[i, j]:.2f}"},
+                G, pos, edge_labels={(i, j): f"$p_{{{i}{j}}}$={Transitionmatrix[i, j]:.3f}"},
                 label_pos=0.4, font_size=8,
                 rotate=True,
                 verticalalignment='top',
@@ -211,7 +211,7 @@ def draw_HMM_graph_with_curved_edges(Transitionmatrix, steadyStatePopulations, t
                 min_source_margin=20, min_target_margin=20
             )
             nx.draw_networkx_edge_labels(
-                G, pos, edge_labels={(j, i): f"$p_{{{j}{i}}}$={Transitionmatrix[j, i]:.2f}"},
+                G, pos, edge_labels={(j, i): f"$p_{{{j}{i}}}$={Transitionmatrix[j, i]:.3f}"},
                 label_pos=0.4, font_size=8,
                 rotate=True,
                 verticalalignment='bottom',
