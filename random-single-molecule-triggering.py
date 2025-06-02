@@ -35,8 +35,12 @@ gamma_back│ │gamma_for       beta_│ │
                   """
 # %% Where to save export
     save_path = "Z:\\_personalDATA\\JS+LV_4F-TIRF\\007_project_3stateDNA\\generatedTriggerPatterns"
-    trigger_name = "for1Hzback033Hz"
+    trigger_name = "for1Hzback033Hz_v2"
+    # Do you want to cut the triggering file into chunks?
+    cut_it = 1 # yes = 1, no = 0
+    n_chunks = 5 # set how many chunks here
 # %% DEFINE YOU MODEL set all parameters:
+    t = 200*5  # duration in seconds, devided into n_chunks if cut_it=1
     # for creating a triggering file in the end:
     exposure_time = 0.200  # in seconds i.e. 200 ms
     readout_time = 0.050 # in seconds i.e. 50 ms
@@ -51,7 +55,7 @@ gamma_back│ │gamma_for       beta_│ │
     alpha_back = 0.33  # in s^-1, rate for A<-B
     beta_back = 0.33   # in s^-1, rate for B<-C
     gamma_back = 0.33  # in s^-1, rate for C<-A
-    t = 200  # duration in seconds
+    
 
     propensities = [lambda a, b, c: alpha_for * a,   # A -> B, Propensity: alpha_forward * A
                     lambda a, b, c: beta_for * b,    # B -> C, Propensity: beta_forward * B
@@ -231,47 +235,47 @@ gamma_back│ │gamma_for       beta_│ │
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-    # BIASED BY FRAMES Dwell times from trigger sequence i.e. "in discrete time/ in frames"
-    # 1. Find dwell times
-    state_dwell_times_Laser = defaultdict(list)
-    current_state = state_array[0]
-    start_index = 0
+    # # BIASED BY FRAMES Dwell times from trigger sequence i.e. "in discrete time/ in frames"
+    # # 1. Find dwell times
+    # state_dwell_times_Laser = defaultdict(list)
+    # current_state = state_array[0]
+    # start_index = 0
     
-    for i in range(1, len(state_array)):
-        if state_array[i] != current_state:
-            start_time = time_vector[start_index]
-            end_time = time_vector[i - 1] + (time_vector[1] - time_vector[0])  # include duration of last sample
-            dwell_duration = end_time - start_time
-            state_dwell_times_Laser[current_state].append(dwell_duration)
+    # for i in range(1, len(state_array)):
+    #     if state_array[i] != current_state:
+    #         start_time = time_vector[start_index]
+    #         end_time = time_vector[i - 1] + (time_vector[1] - time_vector[0])  # include duration of last sample
+    #         dwell_duration = end_time - start_time
+    #         state_dwell_times_Laser[current_state].append(dwell_duration)
     
-            # Update for next segment
-            current_state = state_array[i]
-            start_index = i
-    # 2. Handle the last segment
-    start_time = time_vector[start_index]
-    end_time = time_vector[-1] + (time_vector[1] - time_vector[0])
-    dwell_duration = end_time - start_time
-    state_dwell_times_Laser[current_state].append(dwell_duration)
-    # Plot histogram for each state
-    fig6 = plt.figure()  #figsize=(12, 4)
-    bins_laser = np.arange(0, max(max(state_dwell_times_Laser.values()))+1, frame_time)
-    bins_Gill = np.arange(0, max(max(state_dwell_times_Laser.values()))+1, frame_time/10)
-    # dwell times from LASER
-    plt.hist(state_dwell_times_Laser[0], bins=bins_laser, color='green', alpha=0.6, label='State A Laser')
-    plt.hist(state_dwell_times_Laser[1], bins=bins_laser, color='orange', alpha=0.6, label='State B Laser')
-    plt.hist(state_dwell_times_Laser[2], bins=bins_laser, color='red', alpha=0.6, label='State C Laser')
-    # dwell times from Gillespie
-    plt.hist(state_dwell_times_Gill[0], bins=bins_Gill, color='darkgreen', alpha=0.6, label='State A Gill')
-    plt.hist(state_dwell_times_Gill[1], bins=bins_Gill, color='darkorange', alpha=0.6, label='State B Gill')
-    plt.hist(state_dwell_times_Gill[2], bins=bins_Gill, color='maroon', alpha=0.6, label='State C Gill')
-    plt.xlabel('Dwell Time [s]')
-    plt.ylabel('Frequency')
-    plt.title('Dwell Time Histograms LASER')
-    plt.xlim((0, max(max(state_dwell_times_Laser.values()))+1))
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
+    #         # Update for next segment
+    #         current_state = state_array[i]
+    #         start_index = i
+    # # 2. Handle the last segment
+    # start_time = time_vector[start_index]
+    # end_time = time_vector[-1] + (time_vector[1] - time_vector[0])
+    # dwell_duration = end_time - start_time
+    # state_dwell_times_Laser[current_state].append(dwell_duration)
+    # # Plot histogram for each state
+    # fig6 = plt.figure()  #figsize=(12, 4)
+    # bins_laser = np.arange(0, max(max(state_dwell_times_Laser.values()))+1, frame_time)
+    # bins_Gill = np.arange(0, max(max(state_dwell_times_Laser.values()))+1, frame_time/10)
+    # # dwell times from LASER
+    # plt.hist(state_dwell_times_Laser[0], bins=bins_laser, color='green', alpha=0.6, label='State A Laser')
+    # plt.hist(state_dwell_times_Laser[1], bins=bins_laser, color='orange', alpha=0.6, label='State B Laser')
+    # plt.hist(state_dwell_times_Laser[2], bins=bins_laser, color='red', alpha=0.6, label='State C Laser')
+    # # dwell times from Gillespie
+    # plt.hist(state_dwell_times_Gill[0], bins=bins_Gill, color='darkgreen', alpha=0.6, label='State A Gill')
+    # plt.hist(state_dwell_times_Gill[1], bins=bins_Gill, color='darkorange', alpha=0.6, label='State B Gill')
+    # plt.hist(state_dwell_times_Gill[2], bins=bins_Gill, color='maroon', alpha=0.6, label='State C Gill')
+    # plt.xlabel('Dwell Time [s]')
+    # plt.ylabel('Frequency')
+    # plt.title('Dwell Time Histograms LASER')
+    # plt.xlim((0, max(max(state_dwell_times_Laser.values()))+1))
+    # plt.legend()
+    # plt.grid(True)
+    # plt.tight_layout()
+    # plt.show()
 
     # %% convert to triggering file
     # create frame time for easier calculation
@@ -339,7 +343,6 @@ gamma_back│ │gamma_for       beta_│ │
     
 # %% spilt config file
 
-# ALWAYS off still a plroblem
     def split_and_write_configs(config_save_path, trigger_points, total_time_s, initials, n_chunks):
         chunk_duration_s = total_time_s / n_chunks
         chunk_duration_ms = int(chunk_duration_s * 1000)
@@ -359,6 +362,12 @@ gamma_back│ │gamma_for       beta_│ │
                         new_s = max(s, start_ms) - start_ms
                         new_e = min(e, end_ms) - start_ms
                         chunk_intervals.append((int(new_s), int(new_e)))
+                        
+                    if e==block_time_ms and s==block_time_ms: # for the always off 
+                        new_s = chunk_duration_ms
+                        new_e = chunk_duration_ms
+                        chunk_intervals.append((int(new_s), int(new_e)))
+                        
                 chunk_trigger_points[key] = chunk_intervals
     
             # File name: add _part1, _part2, etc.
@@ -476,9 +485,12 @@ with PdfPages(pdf_path) as pdf:
 print("Figures saved.")
 
 # 3. Save config file
+# the whole laser config file
 config_save_path = os.path.join(full_save_path, f"{trigger_name}_Laserconfig.txt")
 write_config_file(config_save_path, trigger_pointsNEW, block_time_ms, initials)
-split_and_write_configs(config_save_path, trigger_pointsNEW, t, initials, 5)
+# the laser config file in chunks:
+if cut_it:
+    split_and_write_configs(config_save_path, trigger_pointsNEW, t, initials, n_chunks)
 
 # 4. Save extra input parameters to another txt
 params_path = os.path.join(full_save_path, f"{trigger_name}_params.txt")
